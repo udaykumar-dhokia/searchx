@@ -1,0 +1,266 @@
+/* SearchX Premium Aesthetic - Perplexity Inspired */
+
+/* Base Screen - Deeper Dark */
+Screen {
+    background: #050505;
+    color: #e5e5e5;
+}
+
+/* Main Layout */
+#main {
+    layout: horizontal;
+    height: 100%;
+}
+
+/* Sidebar Styling - Minimalist */
+ChatSidebar, SourcesSidebar {
+    width: 28;
+    min-width: 28;
+    background: #0a0a0a;
+}
+
+ChatSidebar {
+    border-right: solid #1a1a1a;
+}
+
+SourcesSidebar {
+    border-left: solid #1a1a1a;
+}
+
+/* Sidebar Headers */
+#chats-title, #sources-title {
+    height: 4;
+    padding: 1 2;
+    background: #0a0a0a;
+    color: #ffffff;
+    text-style: bold;
+    border-bottom: solid #1a1a1a;
+}
+
+/* New Thread Button - Clean & Centered */
+#new-chat-btn {
+    margin: 1 2;
+    width: 100%;
+    background: #1a1a1a;
+    color: #ffffff;
+    border: solid #1a1a1a;
+    height: 3;
+    text-style: bold;
+}
+
+#new-chat-btn:hover {
+    background: #262626;
+    border: solid #333333;
+}
+
+/* ListView - Smooth Transitions */
+ListView {
+    background: transparent;
+    padding: 1 0;
+}
+
+ListItem {
+    height: 3;
+    padding: 1 2;
+    background: transparent;
+    color: #737373;
+    border: none;
+}
+
+ListItem:hover {
+    background: #121212;
+    color: #e5e5e5;
+}
+
+ListItem.-active {
+    background: #171717;
+    color: #ffffff;
+    text-style: bold;
+}
+
+/* Chat View Area */
+ChatView {
+    width: 1fr;
+    background: #050505;
+    layout: vertical;
+}
+
+#chat-history {
+    height: 1fr;
+    padding: 2 4;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+}
+
+#history-inner {
+    width: 100%;
+    height: auto;
+}
+
+/* Scrollbar - Subtle */
+ScrollableContainer {
+    scrollbar-size: 1 1;
+    scrollbar-color: #1a1a1a #050505;
+    scrollbar-color-hover: #404040;
+}
+
+/* Message Bubbles - Minimalist */
+.message {
+    width: 100%;
+    margin-bottom: 3;
+    padding: 0;
+    background: transparent;
+}
+
+.user-query {
+    color: #ffffff;
+    text-style: bold;
+    padding: 1 0;
+    border-bottom: solid #1a1a1a;
+    margin-bottom: 2;
+}
+
+.message-assistant-header {
+    margin-bottom: 1;
+    color: #737373;
+    text-style: bold;
+    opacity: 0.6;
+}
+
+.message-content {
+    color: #d4d4d4;
+}
+
+/* Thinking View - Discrete Steps */
+.thinking-view {
+    margin: 1 0 3 0;
+    padding: 1 2;
+    background: #0a0a0a;
+    border: solid #1a1a1a;
+    height: auto;
+}
+
+#thinking-header {
+    color: #a3a3a3;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.research-step {
+    layout: horizontal;
+    height: 2;
+    color: #525252;
+}
+
+.step-icon {
+    width: 3;
+    color: #404040;
+}
+
+.research-step.completed {
+    color: #a3a3a3;
+}
+
+.research-step.completed .step-icon {
+    color: #22c55e; /* Green checkmark feel */
+}
+
+/* Prompt Bar - Premium Centered Input */
+#prompt-bar-container {
+    height: 8;
+    padding: 1 4;
+    background: transparent;
+    border-top: solid #1a1a1a;
+    align: center middle;
+}
+
+#prompt-input-wrapper {
+    width: 100%;
+    max-width: 80;
+    height: 4;
+    background: #0a0a0a;
+    border: solid #1a1a1a;
+    padding: 0 1;
+}
+
+#chat-input {
+    width: 100%;
+    height: 3;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    padding: 0 1;
+}
+
+#chat-input:focus {
+    border: none;
+}
+
+#chat-input > .placeholder {
+    color: #404040;
+}
+
+/* Sources Sidebar - Compact Cards */
+#sources-container {
+    height: 1fr;
+    padding: 1;
+    overflow-y: scroll;
+}
+
+.source-card {
+    height: 5;
+    margin: 0 0 1 0;
+    padding: 1;
+    background: #0a0a0a;
+    border: solid #1a1a1a;
+}
+
+.source-card:hover {
+    background: #171717;
+    border: solid #262626;
+}
+
+.source-icon {
+    width: 4;
+    color: #737373;
+}
+
+.source-domain {
+    color: #e5e5e5;
+    text-style: bold;
+    height: 1;
+}
+
+.source-full-url {
+    color: #404040;
+    text-overflow: ellipsis;
+    height: 2;
+}
+
+/* Error Messages */
+.error-text {
+    color: #ef4444;
+    padding: 1 2;
+    background: #1a0a0a;
+    border: solid #450a0a;
+    margin: 1 0;
+}
+
+/* Markdown Polishing */
+MarkdownH1, MarkdownH2 {
+    color: #ffffff;
+    text-style: bold;
+    margin: 1 0;
+}
+
+MarkdownBlockQuote {
+    border-left: solid #404040;
+    padding-left: 2;
+    color: #a3a3a3;
+}
+
+/* Footer & Header */
+Header, Footer {
+    background: #050505;
+    color: #404040;
+}

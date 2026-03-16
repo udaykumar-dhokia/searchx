@@ -5,8 +5,8 @@ from ..core.config import SEARXNG_BASE_URL
 
 load_dotenv()
 
-def search(query: str) -> List[str]:
-    """Search for the relevant websites"""
+async def search(query: str) -> List[str]:
+    """Search for the relevant websites asynchronously"""
 
     if not SEARXNG_BASE_URL:
         return []
@@ -16,8 +16,9 @@ def search(query: str) -> List[str]:
         "format": "json"
     }
 
-    response = httpx.get(url=f"{SEARXNG_BASE_URL}/search", params=params)
-    data = response.json()
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url=f"{SEARXNG_BASE_URL}/search", params=params)
+        data = response.json()
 
     urls = [r["url"] for r in data["results"][:15]]
 

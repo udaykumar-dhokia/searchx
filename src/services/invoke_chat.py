@@ -25,9 +25,19 @@ async def invoke_chat(query: str, chat_id: UUID = None, response_id: UUID = None
     yield event("status", message="Enhancing your query...")
     agent = spawn_agent(prompt, AIResponse)
 
-    response = agent.invoke(
-        {"messages": [{"role": "user", "content": query}]},
-    )
+    # Use ainvoke for async compatibility if spawn_agent returns a LangChain Runnable
+    # If it's a custom agent, we might need to use asyncio.to_thread
+    try:
+        response = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": query}]},
+        )
+    except AttributeError:
+        # Fallback to thread if ainvoke is missing
+        import asyncio
+        response = await asyncio.to_thread(
+            agent.invoke,
+            {"messages": [{"role": "user", "content": query}]}
+        )
 
     enhanced_query = response["structured_response"].enhanced_query
 

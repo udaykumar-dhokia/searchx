@@ -2,13 +2,13 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from .db.database import engine
 from .models import Base
-from fastapi.responses import StreamingResponse
+from fastapi    .responses import StreamingResponse
 from .models.response import Response
 from .models.documents import Document, DocumentChunk
 from .models.chat import Chat
 from .services.invoke_chat import invoke_chat
 from typing import Optional
-from sqlalchemy import UUID
+from uuid import UUID
 
 app = FastAPI()
 

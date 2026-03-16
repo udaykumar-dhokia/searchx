@@ -34,5 +34,5 @@ def fetch_page(url: str, verify: bool | str | None = None) -> str:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
     }
-    r = httpx.get(url=url, timeout=15, headers=headers, verify=verify)
+    r = httpx.get(url=url, timeout=30, headers=headers, verify=verify)
     return r.text
