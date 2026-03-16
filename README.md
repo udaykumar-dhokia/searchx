@@ -1,10 +1,10 @@
-# searchx - On-Premise AI Powered Knowledge Assistant
+# searchx - on-premise ai powered research assistant
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Textual](https://img.shields.io/badge/Built%20with-Textual-ff00ff.svg)](https://textual.textualize.io/)
 
-**SearchX** is a high-performance, On-Premise AI Powered Knowledge Assistant with terminal interface. Inspired by modern search engines like Perplexity, it brings deep-dive research capabilities directly to your command line.
+**searchx** is a high-performance, On-Premise AI Powered Research Assistant with terminal interface. Inspired by modern search engines like Perplexity, it brings deep-dive research capabilities directly to your command line.
 
 ![SearchX Demo Mockup](./demo.svg)
 
@@ -59,6 +59,22 @@ API_BASE=http://localhost:8000
 ```
 
 ### 4. Running the Application
+
+#### Option A: Using Docker Compose (Recommended)
+
+This will start everything (Database, SearXNG, Redis, and Backend) automatically.
+
+```bash
+docker compose up -d
+```
+
+Once the containers are up, launch the Research TUI:
+
+```bash
+uv run python src/tui_app.py
+```
+
+#### Option B: Manual Startup
 
 Launch the FastAPI backend:
 

@@ -1,0 +1,19 @@
+use_default_settings: true
+
+general:
+  instance_name: "searxng"
+
+server:
+  secret_key: "ultrasecretkey"
+
+search:
+  autocomplete: "google"
+  formats:
+    - html
+    - json
+
+enabled_engines:
+  - google
+  - bing
+  - duckduckgo
+  - wikipedia

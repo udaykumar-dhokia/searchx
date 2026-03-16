@@ -13,6 +13,46 @@ services:
       - "7000:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - searchx_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: searchx_redis
+    restart: always
+    networks:
+      - searchx_net
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searchx_searxng
+    restart: always
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng:ro
+    depends_on:
+      - redis
+    networks:
+      - searchx_net
+
+  backend:
+    build: .
+    container_name: searchx_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/searchx_db
+      - SEARXNG_BASE_URL=http://searxng:8080
+      - API_BASE=http://localhost:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - searxng
+    networks:
+      - searchx_net
 
   pgadmin:
     image: dpage/pgadmin4:9
@@ -25,6 +65,12 @@ services:
       - "7001:80"
     depends_on:
       - db
+    networks:
+      - searchx_net
+
+networks:
+  searchx_net:
+    driver: bridge
 
 volumes:
   db_data:
