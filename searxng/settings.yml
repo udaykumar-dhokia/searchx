@@ -4,7 +4,7 @@ general:
   instance_name: "searxng"
 
 server:
-  secret_key: "ultrasecretkey"
+  secret_key: "f7a389f4b18c99b82f0c763198a44b9d"
 
 search:
   autocomplete: "google"
@@ -17,3 +17,17 @@ enabled_engines:
   - bing
   - duckduckgo
   - wikipedia
+  - brave
+  - mojeek
+  - startpage
+  - wiby
+  - yahoo
+  - 9gag
+  - lemmy comments
+  - lemmy communities
+  - lemmy posts
+  - lemmy users
+  - mastodon hashtags
+  - mastodon users
+  - reddit
+  - tootfinder

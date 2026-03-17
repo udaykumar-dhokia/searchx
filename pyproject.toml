@@ -47,6 +47,7 @@ dependencies = [
     "trafilatura>=2.0.0",
     "truststore>=0.10.4",
     "python-dotenv>=1.0.0",
+    "markdown-pdf>=1.13.1",
 ]
 
 [project.urls]
@@ -57,9 +58,9 @@ Issues = "https://github.com/udaykumar-dhokia/trawl/issues"
 Changelog = "https://github.com/udaykumar-dhokia/trawl/blob/main/CHANGELOG.md"
 
 [project.scripts]
-trawl = "trawl.cli:main"
-trawl-tui = "trawl.tui_app:run_tui"
-trawl-api = "trawl.main:run_api"
+trawl = "trawl.cli.main:main"
+trawl-tui = "trawl.tui.app:run_tui"
+trawl-api = "trawl.api.main:run_api"
 
 [build-system]
 requires = ["hatchling"]

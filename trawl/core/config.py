@@ -2,6 +2,9 @@ import os
 import sys
 import contextlib
 from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
+from trawl.utils.config_manager import ConfigManager
 
 @contextlib.contextmanager
 def suppress_output():
@@ -23,6 +26,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 SEARXNG_BASE_URL = os.getenv("SEARXNG_BASE_URL")
 API_BASE = os.getenv("API_BASE")
 INDEX_PATH = "faiss_index.idx"
+
+import logging
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 with suppress_output():
     from sentence_transformers import SentenceTransformer, CrossEncoder

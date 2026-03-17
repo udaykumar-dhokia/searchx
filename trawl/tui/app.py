@@ -5,14 +5,13 @@ from datetime import datetime
 from typing import Optional
 
 import httpx
-from .core.config import API_BASE
+from ..core.config import API_BASE
 from textual import on, work
 from rich.markup import escape
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
-from textual.reactive import reactive
 from textual.widgets import (
     Footer,
     Header,
@@ -20,18 +19,12 @@ from textual.widgets import (
     Label,
     ListItem,
     ListView,
-    Markdown,
     Static,
     Button,
-    RadioSet,
-    RadioButton,
     Select
 )
-from textual.screen import ModalScreen
-from .utils.config_manager import ConfigManager
+from ..utils.config_manager import ConfigManager
 import os
-import re
-import pyperclip
 
 STREAM_ENDPOINT = f"{API_BASE}/chat"
 CHATS_ENDPOINT = f"{API_BASE}/chats"
@@ -44,501 +37,15 @@ def fmt_time(iso: str) -> str:
     except Exception:
         return iso
 
-class ConfigModal(ModalScreen):
-    """Configuration modal for LLM settings."""
 
-    DEFAULT_CSS = """
-    ConfigModal {
-        align: center middle;
-    }
-    #modal-container {
-        width: 60;
-        height: auto;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
-    }
-    #modal-title {
-        text-align: center;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    .config-label {
-        margin-top: 1;
-        color: $text-muted;
-    }
-    #provider-select {
-        layout: horizontal;
-        height: 3;
-        margin-bottom: 1;
-    }
-    #button-row {
-        margin-top: 2;
-        height: 3;
-        layout: horizontal;
-    }
-    #save-btn {
-        width: 1fr;
-    }
-    #cancel-btn {
-        width: 15;
-        margin-left: 1;
-    }
-    #sel-model {
-        margin-top: 1;
-    }
-    """
-
-    BINDINGS = [
-        Binding("escape", "dismiss", "Cancel"),
-    ]
-
-    def compose(self) -> ComposeResult:
-        config = ConfigManager.get_config()
-        provider = config.get("provider", "ollama")
-        
-        with Vertical(id="modal-container"):
-            yield Label("⚙️ trawl Settings", id="modal-title")
-            
-            yield Label("LLM Provider", classes="config-label")
-            with RadioSet(id="provider-select"):
-                yield RadioButton("Ollama", id="opt-ollama", value=(provider == "ollama"))
-                yield RadioButton("Google", id="opt-google", value=(provider == "google"))
-            
-            yield Label("Ollama Base URL", id="lbl-ollama-url", classes="config-label")
-            yield Input(
-                config.get("ollama_base_url", "http://localhost:11434"),
-                placeholder="http://localhost:11434",
-                id="in-ollama-url"
-            )
-            
-            yield Label("Google API Key", id="lbl-google-key", classes="config-label")
-            yield Input(
-                config.get("google_api_key", ""),
-                placeholder="Enter Gemini API Key",
-                id="in-google-key",
-                password=True
-            )
-            
-            yield Label("Choose Model", classes="config-label")
-            yield Select([], id="sel-model", prompt="Select a model...")
-            
-            with Horizontal(id="button-row"):
-                yield Button("Save", variant="success", id="save-btn")
-                yield Button("Cancel", id="cancel-btn")
-
-    @on(Button.Pressed, "#cancel-btn")
-    def cancel_settings(self) -> None:
-        self.dismiss()
-
-    def on_mount(self) -> None:
-        self._update_visibility()
-        self._load_models()
-
-    def _update_visibility(self) -> None:
-        provider = "google" if self.query_one("#opt-google", RadioButton).value else "ollama"
-        is_google = (provider == "google")
-        
-        self.query_one("#lbl-ollama-url").display = not is_google
-        self.query_one("#in-ollama-url").display = not is_google
-        
-        self.query_one("#lbl-google-key").display = is_google
-        self.query_one("#in-google-key").display = is_google
-
-    @on(RadioSet.Changed)
-    def on_provider_changed(self) -> None:
-        self._update_visibility()
-        self._load_models()
-
-    @work(exclusive=True)
-    async def _load_models(self) -> None:
-        provider = "google" if self.query_one("#opt-google", RadioButton).value else "ollama"
-        models = []
-        
-        if provider == "ollama":
-            url = self.query_one("#in-ollama-url", Input).value
-            models = await ConfigManager.fetch_ollama_models(url)
-        else:
-            key = self.query_one("#in-google-key", Input).value
-            if key:
-                models = await ConfigManager.fetch_google_models(key)
-        
-        if models:
-            def truncate_name(name: str, limit: int = 22) -> str:
-                return name[:limit-3] + "..." if len(name) > limit else name
-
-            options = [(truncate_name(m), m) for m in models]
-            self.query_one("#sel-model", Select).set_options(options)
-            
-            current = ConfigManager.get_config().get("model")
-            if current in models:
-                self.query_one("#sel-model", Select).value = current
-
-    @on(Button.Pressed, "#save-btn")
-    def save_settings(self) -> None:
-        provider = "google" if self.query_one("#opt-google", RadioButton).value else "ollama"
-        config = {
-            "provider": provider,
-            "ollama_base_url": self.query_one("#in-ollama-url", Input).value,
-            "google_api_key": self.query_one("#in-google-key", Input).value,
-            "model": self.query_one("#sel-model", Select).value
-        }
-        ConfigManager.save_config(config)
-        self.dismiss()
-
-class StatusBar(Static):
-    """Thin status strip shown inside the chat panel."""
-
-    DEFAULT_CSS = """
-    StatusBar {
-        height: 1;
-        background: $surface;
-        color: $text-muted;
-        padding: 0 2;
-        text-style: italic;
-    }
-    """
-
-    status: reactive[str] = reactive("")
-
-    def render(self) -> str:
-        return f"⟳  {escape(self.status)}" if self.status else ""
-
-class ImageItem(Static):
-    """Clickable image URL item with thumbnail placeholder."""
-
-    DEFAULT_CSS = """
-    ImageItem {
-        height: auto;
-        padding: 0 1;
-        margin-bottom: 1;
-        border-left: thick $warning;
-        color: $text;
-        background: $surface;
-    }
-    ImageItem:hover {
-        background: $boost;
-    }
-    """
-
-    def __init__(self, index: int, url: str) -> None:
-        super().__init__()
-        self._index = index
-        self._url = url
-
-    def render(self) -> str:
-        domain = escape(self._url.split("/")[2] if "//" in self._url else self._url)
-        short_url = self._url[:55] + ("…" if len(self._url) > 55 else "")
-        safe_short = escape(short_url)
-
-        return (
-            f"[{self._index}] 🖼  {domain}\n"
-            f"[dim][link='{self._url}']{safe_short}[/link][/dim]"
-        )
-
-    def on_click(self) -> None:
-        import webbrowser
-        webbrowser.open(self._url)
-
-class VideoItem(Static):
-    """Clickable video URL item."""
-
-    DEFAULT_CSS = """
-    VideoItem {
-        height: auto;
-        padding: 0 1;
-        margin-bottom: 1;
-        border-left: thick $success;
-        color: $text;
-        background: $surface;
-    }
-    VideoItem:hover {
-        background: $boost;
-    }
-    """
-
-    def __init__(self, index: int, url: str) -> None:
-        super().__init__()
-        self._index = index
-        self._url = url
-
-    def render(self) -> str:
-        domain = escape(self._url.split("/")[2] if "//" in self._url else self._url)
-        short_url = self._url[:55] + ("…" if len(self._url) > 55 else "")
-        safe_short = escape(short_url)
-
-        return (
-            f"[{self._index}] 🎥  {domain}\n"
-            f"[dim][link='{self._url}']{safe_short}[/link][/dim]"
-        )
-
-    def on_click(self) -> None:
-        import webbrowser
-        webbrowser.open(self._url)
-
-class SourceItem(Static):
-    """Single source link in the right sidebar."""
-
-    DEFAULT_CSS = """
-    SourceItem {
-        height: auto;
-        padding: 0 1;
-        margin-bottom: 1;
-        border-left: thick $accent;
-        color: $text;
-        background: $surface;
-    }
-    SourceItem:hover {
-        background: $boost;
-    }
-    """
-
-    def __init__(self, index: int, url: str) -> None:
-        super().__init__()
-        self._index = index
-        self._url = url
-
-    def render(self) -> str:
-        domain = escape(self._url.split("/")[2] if "//" in self._url else self._url)
-        short_url = self._url[:60] + ("…" if len(self._url) > 60 else "")
-        safe_short = escape(short_url)
-
-        return f"[{self._index}] {domain}\n[dim][link='{self._url}']{safe_short}[/link][/dim]"
-
-
-class ChatBubble(Static):
-    """A single query + response block in the chat history."""
-
-    DEFAULT_CSS = """
-    ChatBubble {
-        height: auto;
-        margin-bottom: 2;
-        padding: 1 2;
-        background: $surface;
-        border: round $primary-darken-2;
-    }
-    ChatBubble .query {
-        color: $accent;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    ChatBubble .response {
-        color: $text;
-    }
-    ChatBubble #copy-full-btn {
-        margin-top: 1;
-        background: $primary-darken-2;
-        color: $text;
-        width: 30;
-        height: 3;
-        border: none;
-    }
-    ChatBubble #copy-full-btn:hover {
-        background: $primary;
-    }
-
-    /* ── CodeBlock specific styles ── */
-    CodeBlock {
-        margin: 1 0;
-        background: $surface-darken-1;
-        border: solid $primary-darken-3;
-        height: auto;
-    }
-    .code-header {
-        height: 1;
-        background: $primary-darken-3;
-        layout: horizontal;
-        content-align: right middle;
-    }
-    .copy-icon-btn {
-        min-width: 4;
-        height: 1;
-        padding: 0 1;
-        background: transparent;
-        border: none;
-        color: $text-muted;
-    }
-    .copy-icon-btn:hover {
-        color: $accent;
-        background: $primary-darken-2;
-    }
-    """
-
-    def __init__(self, query: str, response: str) -> None:
-        super().__init__()
-        self._query = query
-        self._response = response
-
-    def compose(self) -> ComposeResult:
-        yield Label(f"You: {escape(self._query)}", classes="query")
-        
-        # Split response into text and code blocks
-        parts = re.split(r"(```(?:\w+)?\n.*?\n```)", self._response, flags=re.DOTALL)
-        for part in parts:
-            if part.startswith("```"):
-                # Extract code and language if needed
-                match = re.match(r"```(?:\w+)?\n(.*?)\n```", part, re.DOTALL)
-                code = match.group(1) if match else part
-                yield CodeBlock(code, original_md=part)
-            elif part.strip():
-                yield Markdown(part)
-        
-        yield Button("📋 Copy Full Response", id="copy-full-btn")
-
-    @on(Button.Pressed, "#copy-full-btn")
-    def copy_full(self) -> None:
-        try:
-            pyperclip.copy(self._response)
-            self.notify("Full response copied to clipboard!", severity="info", title="Success")
-        except Exception as e:
-            self.notify(f"Clipboard error: {str(e)}", severity="error", title="Error")
-
-class CodeBlock(Static):
-    """A widget for displaying code with an integrated copy button."""
-    
-    DEFAULT_CSS = """
-    CodeBlock {
-        margin: 1 0;
-        background: $surface-darken-1;
-        border: solid $primary-darken-3;
-        height: auto;
-    }
-    CodeBlock .code-header {
-        height: 1;
-        background: $primary-darken-3;
-        layout: horizontal;
-        content-align: right middle;
-    }
-    CodeBlock .copy-icon-btn {
-        min-width: 4;
-        height: 1;
-        padding: 0 1;
-        background: transparent;
-        border: none;
-        color: $text-muted;
-    }
-    CodeBlock .copy-icon-btn:hover {
-        color: $accent;
-        background: $primary-darken-2;
-    }
-    CodeBlock Markdown {
-        margin: 0;
-        padding: 0;
-    }
-    """
-
-    def __init__(self, code: str, original_md: str) -> None:
-        super().__init__()
-        self._code = code
-        self._original_md = original_md
-
-    def compose(self) -> ComposeResult:
-        with Horizontal(classes="code-header"):
-            yield Button("📋", classes="copy-icon-btn")
-        yield Markdown(self._original_md)
-
-    @on(Button.Pressed, ".copy-icon-btn")
-    def copy_code(self) -> None:
-        pyperclip.copy(self._code)
-        self.app.notify("Code copied to clipboard", severity="info")
-
-
-class LiveResponseWidget(Vertical):
-    """Streaming response area — shows status, then streams markdown tokens."""
-
-    DEFAULT_CSS = """
-    LiveResponseWidget {
-        height: auto;
-        padding: 1 2;
-        margin-bottom: 2;
-        background: $surface;
-        border: round $accent;
-    }
-    LiveResponseWidget #live-query {
-        color: $accent;
-        text-style: bold;
-        margin-bottom: 1;
-    }
-    LiveResponseWidget #live-status {
-        color: $warning;
-        text-style: italic;
-        height: 1;
-    }
-    LiveResponseWidget #live-md {
-        height: auto;
-    }
-    LiveResponseWidget #live-copy-full-btn {
-        margin-top: 1;
-        background: $accent-darken-1;
-        color: $text;
-        width: 30;
-        height: 3;
-        display: none;
-        border: none;
-    }
-    LiveResponseWidget #live-copy-full-btn:hover {
-        background: $accent;
-    }
-    """
-
-    def compose(self) -> ComposeResult:
-        yield Label("", id="live-query")
-        yield Label("", id="live-status")
-        with Vertical(id="live-content"):
-            yield Markdown("", id="live-md")
-        yield Button("📋 Copy Full Response", id="live-copy-full-btn")
-
-    def set_query(self, query: str) -> None:
-        self.query_one("#live-query", Label).update(f"You: {escape(query)}")
-
-    def set_status(self, msg: str) -> None:
-        self.query_one("#live-status", Label).update(f"⟳  {escape(msg)}")
-
-    def clear_status(self) -> None:
-        self.query_one("#live-status", Label).update("")
-
-    def append_token(self, token: str) -> None:
-        md: Markdown = self.query_one("#live-md", Markdown)
-        current = getattr(md, "_markdown", "") or ""
-        current += token
-        md._markdown = current
-        md.update(current)
-        self._full_content = current
-
-    def show_copy_buttons(self) -> None:
-        """Show copy buttons and populate code block buttons."""
-        content = self.get_content()
-        self.query_one("#live-copy-full-btn").display = True
-        
-        # Replace the live-md with split sections
-        container = self.query_one("#live-content", Vertical)
-        container.remove_children()
-        
-        parts = re.split(r"(```(?:\w+)?\n.*?\n```)", content, flags=re.DOTALL)
-        for part in parts:
-            if part.startswith("```"):
-                match = re.match(r"```(?:\w+)?\n(.*?)\n```", part, re.DOTALL)
-                code = match.group(1) if match else part
-                container.mount(CodeBlock(code, original_md=part))
-            elif part.strip():
-                container.mount(Markdown(part))
-
-    @on(Button.Pressed, "#live-copy-full-btn")
-    def copy_full(self) -> None:
-        try:
-            pyperclip.copy(self.get_content())
-            self.app.notify("Full response copied to clipboard!", severity="info", title="Success")
-        except Exception as e:
-            self.app.notify(f"Clipboard error: {str(e)}", severity="error", title="Error")
-
-    def get_content(self) -> str:
-        return getattr(self, "_full_content", "")
-
-
+from .screens.config_modal import ConfigModal
+from .widgets.media_items import ImageItem, VideoItem, SourceItem
+from .widgets.chat_bubble import ChatBubble
+from .widgets.live_response import LiveResponseWidget
 class TrawlApp(App):
     """Trawl TUI."""
 
-    TITLE = "trawl  "
+    TITLE = "trawl"
     SUB_TITLE = "AI Powered Knowledge Assistant"
 
     CSS = """
@@ -622,7 +129,11 @@ class TrawlApp(App):
         layout: horizontal;
     }
     #llm-switcher {
-        width: 30;
+        width: 25;
+        margin-right: 1;
+    }
+    #search-type-switcher {
+        width: 15;
         margin-right: 1;
     }
     #query-input {
@@ -744,6 +255,7 @@ class TrawlApp(App):
                     )
                 with Horizontal(id="input-row"):
                     yield Select([], id="llm-switcher", prompt="Select LLM")
+                    yield Select([("General", "general"), ("Social", "social")], value="general", id="search-type-switcher")
                     yield Input(placeholder="Ask anything…", id="query-input")
                     yield Button("Send ↵", id="send-btn", variant="primary")
 
@@ -941,8 +453,9 @@ class TrawlApp(App):
 
         messages = self.query_one("#messages", ScrollableContainer)
 
-        for w in messages.query("Static"):
-            await w.remove()
+        for w in messages.children:
+            if isinstance(w, Static) and not isinstance(w, (ChatBubble, LiveResponseWidget)):
+                await w.remove()
 
         live = LiveResponseWidget()
         await messages.mount(live)
@@ -950,7 +463,8 @@ class TrawlApp(App):
         messages.scroll_end(animate=True)
 
         current_sources: list[str] = []
-        payload = {"query": query}
+        search_type = self.query_one("#search-type-switcher", Select).value
+        payload = {"query": query, "type": search_type}
         if self.current_chat_id:
             payload["chat_id"] = self.current_chat_id
 

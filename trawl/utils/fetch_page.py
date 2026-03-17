@@ -1,6 +1,7 @@
 import os
 import certifi
 import httpx
+from urllib.parse import urlparse
 
 def fetch_page(url: str, verify: bool | str | None = None) -> str:
     env_verify = os.getenv("HTTPX_VERIFY")
@@ -34,7 +35,7 @@ def fetch_page(url: str, verify: bool | str | None = None) -> str:
         return ""
 
     except httpx.TimeoutException:
-        return ""
+        return ""   
 
     except Exception:
         return ""

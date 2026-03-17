@@ -16,7 +16,7 @@ Thank you for your interest in contributing to trawl! We welcome contributions f
 1. Fork and clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/trawl.git
+   git clone https://github.com/udaykumar-dhokia/trawl.git
    cd trawl
    ```
 

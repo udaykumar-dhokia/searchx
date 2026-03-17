@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -10,9 +8,10 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: trawl_db
     ports:
-      - "7000:5432"
+      - "6000:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     networks:
       - trawl_net
 
@@ -32,7 +31,7 @@ services:
     ports:
       - "8888:8080"
     volumes:
-      - ./searxng:/etc/searxng:ro
+      - ./searxng:/etc/searxng:rw
     depends_on:
       - redis
     networks:
@@ -46,8 +45,15 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/trawl_db
       - SEARXNG_BASE_URL=http://searxng:8080
       - API_BASE=http://localhost:8000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
+    volumes:
+      - ~/.trawl:/root/.trawl:ro
     depends_on:
       - db
       - searxng
@@ -62,7 +68,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "7001:80"
+      - "6001:80"
     depends_on:
       - db
     networks:

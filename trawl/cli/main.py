@@ -22,9 +22,9 @@ def suppress_output():
             sys.stderr = old_stderr
 
 with suppress_output():
-    from .main import app
-    from .services.invoke_chat import invoke_chat
-    from .tui_app import run_tui
+    from ..api.main import app
+    from ..services.invoke_chat import invoke_chat
+    from ..tui.app import run_tui
 
 
 def main() -> None:
@@ -64,18 +64,15 @@ Examples:
     args = parser.parse_args()
 
     if args.tui:
-        # Textual manages its own asyncio loop internally
         run_tui()
     elif args.q:
-        # Fire the async chat invocation once and exit
         query = args.q
         try:
-            asyncio.run(invoke_chat(query=query))  # type: ignore[arg-type]
+            asyncio.run(invoke_chat(query=query, type="general"))
         except KeyboardInterrupt:
             print("\nQuery interrupted by user.")
             sys.exit(1)
     else:
-        # Run FastAPI HTTP server
         truststore.inject_into_ssl()
         print(f"Starting trawl API server on {args.host}:{args.port}")
         print("Press Ctrl+C to stop")

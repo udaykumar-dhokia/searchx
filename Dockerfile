@@ -9,8 +9,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uv/bin/
 ENV PYTHONUNBUFFERED=1
 ENV UV_SYSTEM_PYTHON=1
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and metadata needed for build
+COPY pyproject.toml uv.lock README.md ./
+COPY trawl/__init__.py trawl/__init__.py
 
 # Install dependencies
 RUN /uv/bin/uv sync --frozen --no-cache
@@ -22,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # Run the FastAPI server
-CMD ["fastapi", "run", "src/main.py", "--port", "8000", "--host", "0.0.0.0"]
+CMD ["/uv/bin/uv", "run", "trawl-api"]
