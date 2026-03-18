@@ -8,20 +8,34 @@
 **trawl** is a high-performance, On-Premise AI Powered Research Assistant with terminal interface. Inspired by modern search assistants like Perplexity, it brings deep-dive research capabilities directly to your command line.
 
 ![trawl Demo Mockup](./demo.svg)
+![trawl cli demo](./cli.png)
 
 ---
 
 ## Features
 
-- **Live Streaming Responses**: Real-time markdown streaming for immediate feedback
-- **Visual Research Insights**: Dedicated image and video sidebar displaying relevant visuals discovered during research
-- **Smart Research Orchestration**: Automatically searches the web, processes multiple sources, and synthesizes answers
-- **Source Citations**: Interactive sidebar displaying all research sources with site-specific icons/emojis
-- **Persistent Threads**: Full chat history support powered by PostgreSQL and SQLAlchemy
-- **Premium TUI**: A sleek, customizable terminal interface with both Light and Dark themes
-- **Fast-API Backend**: Robust, asynchronous backend architecture for multi-step research
-- **Multiple LLM Support**: Integration with Google Gemini and Ollama
-- **Vector Search**: pgvector-powered semantic search for efficient document retrieval
+- **Animated Streaming Responses**: Real-time markdown streaming with live spinners and status updates in the terminal.
+- **Stable Research UI**: A structured terminal layout using `Rich` to show research progress, sources, and media links without flickering.
+- **Visual Research Insights**: Automatic detection and display of relevant images and videos discovered during research.
+- **Integrated Configuration**: Manage your provider (Gemini/Ollama), API keys, and models directly from the CLI.
+- **Source Citations**: Clean display of research sources with clickable links (where supported by the terminal).
+- **Persistent Threads**: Full chat history support powered by PostgreSQL and SQLAlchemy.
+- **Premium TUI**: A sleek, customizable terminal interface with both Light and Dark themes.
+- **Fast-API Backend**: Robust, asynchronous backend architecture for multi-step research.
+- **Vector Search**: pgvector-powered semantic search for efficient document retrieval.
+
+---
+
+## Roadmap
+
+Here's what's coming next to make trawl even more powerful. Contributions towards any of these are especially welcome!
+
+| Status | Feature                            | Description                                                                                                                          |
+| :----- | :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| [ ]    | **More LLM Providers**             | Support for Anthropic, OpenAI, Mistral, and other popular providers beyond.                                                          |
+| [ ]    | **Research Modes**                 | Choose your depth — Quick (fast, 1–2 sources), Deep Research (thorough, 10+ sources), and Academic (prefers arXiv, PubMed, Scholar). |
+| [ ]    | **Follow-up Question Suggestions** | After each answer, trawl will surface related questions you can instantly continue the thread with.                                  |
+| [ ]    | **File Upload & Analysis**         | Drop in a PDF, DOCX, or folder and ask questions against your local files — combined with live web search.                           |
 
 ---
 
@@ -36,7 +50,34 @@
 
 ---
 
-## Quick Start
+### Docker Quick Start (Recommended)
+
+The fastest way to get `trawl` up and running is using Docker. This will start the backend, database, and search engine automatically.
+
+```bash
+# 1. Clone and enter the repository
+git clone https://github.com/udaykumar-dhokia/trawl.git
+cd trawl
+
+# 2. Start the stack (this includes Ollama, PostgreSQL, and SearXNG)
+docker compose up -d
+```
+
+### Interact with Docker
+
+Once the containers are running, you can use the `trawl` CLI to perform research or manage configuration.
+
+```bash
+# Run research through the Docker backend
+docker exec -it trawl_backend uv run trawl research "How can we create AI Agents with LangChain?"
+
+# View configuration inside Docker
+docker exec -it trawl_backend uv run trawl config view
+```
+
+---
+
+## Manual Installation
 
 ### Prerequisites
 
@@ -44,20 +85,13 @@
 - [uv](https://github.com/astral-sh/uv) package manager
 - PostgreSQL database
 - SearxNG instance (optional, for web search)
-- Ollama (optional, for local LLM support)
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/udaykumar-dhokia/trawl.git
 cd trawl
-
-# Install dependencies
 uv sync
-
-# Or for development
-uv sync --dev
 ```
 
 ### Configuration
@@ -68,75 +102,52 @@ uv sync --dev
    cp .env.example .env
    ```
 
-2. Edit `.env` with your configuration:
+2. Edit `.env` with your database and API keys.
 
-   ```bash
-   # Database
-   DATABASE_URL=postgresql://user:password@localhost:5432/trawl_db
+---
 
-   # API
-   API_BASE=http://localhost:8000
+## Usage
 
-   # Search Engine
-   SEARXNG_BASE_URL=http://localhost:8888
-
-   # LLM Configuration
-   OLLAMA_BASE_URL=http://localhost:11434
-   GOOGLE_API_KEY=your_api_key_here
-   LLM_PROVIDER=ollama  # or 'google'
-   ```
-
-### Database Setup
-
-1. Create a PostgreSQL database
-2. Install pgvector extension:
-   ```sql
-   CREATE EXTENSION vector;
-   ```
-3. Run the initial migration (if available) or the app will create tables automatically
-
-### Usage
-
-#### Terminal User Interface (Recommended)
+### Research Mode
 
 ```bash
-# Start the interactive TUI
-trawl --tui
+# Basic research query
+trawl research "Your query here"
 
-# Or using make
-make tui
+# Short flag
+trawl research --q "Your query here"
 ```
 
-#### Command Line Query
+### Configuration Management
 
 ```bash
-# Single query mode
-trawl --query "What is quantum computing?"
+# View current settings
+trawl config view
 
-# Or using make
-make query QUERY="What is quantum computing?"
+# Update a setting
+trawl config set provider google
+trawl config set google_api_key YOUR_API_KEY
 ```
 
-#### API Server
+### Terminal User Interface (TUI)
 
 ```bash
-# Start the FastAPI server
-trawl
-
-# Or run directly
-uv run trawl
+# Start the interactive dashboard
+trawl tui
 ```
 
-#### Programmatic Usage
+### Programmatic Usage
 
 ```python
 import asyncio
 from trawl.services.invoke_chat import invoke_chat
 
 async def main():
-    await invoke_chat(query="Your research question here")
+    async for chunk in invoke_chat(query="How do bees fly?"):
+        print(chunk)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ---
@@ -215,20 +226,6 @@ scripts/                # Development scripts
 
 ---
 
-## Docker
-
-Build and run with Docker:
-
-```bash
-# Build image
-docker build -t trawl .
-
-# Run container
-docker run -p 8000:8000 --env-file .env trawl
-```
-
----
-
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -259,49 +256,9 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 - 🐛 [Issues](https://github.com/udaykumar-dhokia/trawl/issues)
 - 💬 [Discussions](https://github.com/udaykumar-dhokia/trawl/discussions)
 
-Create a `.env` file in the root directory:
-
-```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/trawl_db
-SEARXNG_BASE_URL=http://localhost:8080
-GOOGLE_API_KEY=your_gemini_api_key
-DEFAULT_MODEL=gemini-1.5-pro
-API_BASE=http://localhost:8000
-```
-
-### 4. Running the Application
-
-#### Option A: Using Docker Compose (Recommended)
-
-This will start everything (Database, SearXNG, Redis, and Backend) automatically.
-
-```bash
-docker compose up -d
-```
-
-Once the containers are up, launch the Research TUI:
-
-```bash
-uv run python src/tui_app.py
-```
-
-#### Option B: Manual Startup
-
-Launch the FastAPI backend:
-
-```bash
-uv run fastapi run src/main.py
-```
-
-Launch the Research TUI:
-
-```bash
-uv run python src/tui_app.py
-```
-
 ---
 
-## Keyboard Shortcuts
+## Keyboard Shortcuts (TUI)
 
 | Shortcut   | Action            |
 | :--------- | :---------------- |
@@ -309,18 +266,6 @@ uv run python src/tui_app.py
 | `Ctrl + R` | Refresh Chat List |
 | `Escape`   | Blur / Exit Input |
 | `Ctrl + C` | Quit Application  |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Whether it's adding a new search provider, improving the UI, or fixing bugs, please feel free to fork the repo and submit a PR.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ---
 

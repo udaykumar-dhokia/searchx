@@ -12,6 +12,11 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d trawl_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - trawl_net
 
@@ -19,6 +24,11 @@ services:
     image: redis:7-alpine
     container_name: trawl_redis
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - trawl_net
 
@@ -33,7 +43,13 @@ services:
     volumes:
       - ./searxng:/etc/searxng:rw
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - trawl_net
 
@@ -45,32 +61,27 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/trawl_db
       - SEARXNG_BASE_URL=http://searxng:8080
       - API_BASE=http://localhost:8000
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_BASE_URL=http://ollama:11434
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - DEFAULT_MODEL=${DEFAULT_MODEL:-}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     volumes:
-      - ~/.trawl:/root/.trawl:ro
+      - trawl_config:/root/.trawl
     depends_on:
-      - db
-      - searxng
+      db:
+        condition: service_healthy
+      searxng:
+        condition: service_healthy
     networks:
       - trawl_net
 
-  pgadmin:
-    image: dpage/pgadmin4:9
-    container_name: trawl_pgadmin
+  ollama:
+    image: ollama/ollama:latest
+    container_name: trawl_ollama
     restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "6001:80"
-    depends_on:
-      - db
+    volumes:
+      - ollama_data:/root/.ollama
     networks:
       - trawl_net
 
@@ -80,3 +91,5 @@ networks:
 
 volumes:
   db_data:
+  trawl_config:
+  ollama_data:

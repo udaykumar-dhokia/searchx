@@ -164,3 +164,9 @@ CLAUDE.md
 # Build artifacts
 *.whl
 *.tar.gz
+
+#Docker
+Dockerfile.full
+PUBLISHING.md
+supervisord.conf
+entrypoint.sh
