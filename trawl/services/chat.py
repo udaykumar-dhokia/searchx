@@ -45,26 +45,32 @@ async def chat(query: str, image_query: str, video_query: str, chat_id: UUID = N
         chunk_str = str(chunk).strip()
         if not chunk_str:
             continue
-            
-        if "data:" in chunk_str:
-            parts = chunk_str.split("data:")
-            for part in parts:
-                clean_part = part.strip()
-                if not clean_part:
-                    continue
-                try:
-                    data = json.loads(clean_part)
-                    if data.get("type") == "title":
-                        title = data.get("text", "")
-                    elif data.get("type") == "content":
-                        content += data.get("text", "")
-                except Exception:
-                    pass
 
         yield chunk
+
+        if chunk_str.startswith("data: "):
+            try:
+                data = json.loads(chunk_str[6:].strip())
+                if data.get("type") == "title":
+                    title = data.get("text", "")
+                elif data.get("type") == "content":
+                    content += data.get("text", "")
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+    if not title:
+        for line in content.split("\n"):
+            line = line.strip()
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
 
     if not title:
         title = query[:40] + ("..." if len(query) > 40 else "")
 
+    yield event("title", text=title)
+
     await update_chat_title(chat_id=chat_id, title=title)
     await insert_response(response_id=response_id, query=query, content=content, chat_id=chat_id, urls=urls, image_urls=image_urls, video_urls=video_urls)
+
+    yield event("done", chat_id=str(chat_id))

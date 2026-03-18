@@ -1,10 +1,11 @@
 import json
 import re
+import time
 import pyperclip
 from rich.markup import escape
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Vertical, Horizontal
 from textual.widgets import Button, Label, Markdown
 
 from .chat_bubble import CodeBlock
@@ -50,11 +51,31 @@ class LiveResponseWidget(Vertical):
         height: 3;
         margin-top: 1;
     }
+    #live-verticals {
+        height: auto;
+        padding: 0 1;
+        margin-bottom: 1;
+        display: none;
+    }
+    .vertical-label {
+        height: 1;
+        margin-bottom: 0;
+        color: $text-muted;
+    }
+    .vertical-active {
+        color: $warning;
+        text-style: bold;
+    }
+    .vertical-done {
+        color: $success;
+    }
     """
 
     def compose(self) -> ComposeResult:
         yield Label("", id="live-query")
         yield Label("", id="live-status")
+        with Vertical(id="live-verticals"):
+            pass
         with Vertical(id="live-content"):
             yield Markdown("", id="live-md")
         with Horizontal(id="live-actions"):
@@ -62,39 +83,105 @@ class LiveResponseWidget(Vertical):
             yield Button("📄 Download PDF", id="live-download-pdf-btn")
 
     def set_query(self, query: str) -> None:
-        self.query_one("#live-query", Label).update(f"You: {escape(query)}")
+        if not self.is_mounted: return
+        try:
+            self.query_one("#live-query", Label).update(f"You: {escape(query)}")
+        except Exception:
+            pass
 
     def set_status(self, msg: str) -> None:
-        self.query_one("#live-status", Label).update(f"⟳  {escape(msg)}")
+        if not self.is_mounted: return
+        try:
+            self.query_one("#live-status", Label).update(f"⟳  {escape(msg)}")
+        except Exception:
+            pass
 
     def clear_status(self) -> None:
-        self.query_one("#live-status", Label).update("")
+        if not self.is_mounted: return
+        try:
+            self.query_one("#live-status", Label).update("")
+        except Exception:
+            pass
 
     def append_token(self, token: str) -> None:
-        md: Markdown = self.query_one("#live-md", Markdown)
-        current = getattr(md, "_markdown", "") or ""
+        """Append a token and throttle markdown re-renders to avoid UI stalls."""
+        current = getattr(self, "_full_content", "") or ""
         current += token
-        md._markdown = current
-        md.update(current)
         self._full_content = current
+
+        if not self.is_mounted: return
+
+        now = time.monotonic()
+        last_render = getattr(self, "_last_render_time", 0.0)
+        if now - last_render >= 0.15:
+            self._last_render_time = now
+            try:
+                md: Markdown = self.query_one("#live-md", Markdown)
+                md.update(current)
+            except Exception:
+                pass
+
+    def flush_content(self) -> None:
+        """Force a final render of accumulated content."""
+        if not self.is_mounted: return
+        content = getattr(self, "_full_content", "")
+        if content:
+            try:
+                md: Markdown = self.query_one("#live-md", Markdown)
+                md.update(content)
+            except Exception:
+                pass
+
+    def set_verticals(self, verticals: list) -> None:
+        """Display the 3 DeepSearch verticals with progress indicators."""
+        if not self.is_mounted: return
+        try:
+            container = self.query_one("#live-verticals", Vertical)
+            container.display = True
+            container.remove_children()
+            container.mount(Label("[bold cyan] Research Verticals:[/]"))
+            self._vertical_labels = []
+            for i, v in enumerate(verticals):
+                lbl = Label(f"  ⏳ V{i+1}: {v}", classes="vertical-label")
+                container.mount(lbl)
+                self._vertical_labels.append(lbl)
+        except Exception:
+            pass
+
+    def update_vertical_progress(self, index: int, query: str, status: str, url_count: int = 0) -> None:
+        """Update a specific vertical's progress."""
+        if not hasattr(self, "_vertical_labels") or index >= len(self._vertical_labels):
+            return
+        lbl = self._vertical_labels[index]
+        if status == "searching":
+            lbl.update(f"  🔍 V{index+1}: {query}")
+            lbl.set_classes("vertical-label vertical-active")
+        elif status == "done":
+            lbl.update(f"  ✅ V{index+1}: {query} ({url_count} sources)")
+            lbl.set_classes("vertical-label vertical-done")
 
     def show_copy_buttons(self) -> None:
         """Show copy and download buttons and populate code block buttons."""
+        if not self.is_mounted: return
+        
         content = self.get_content()
-        self.query_one("#live-copy-full-btn").display = True
-        self.query_one("#live-download-pdf-btn").display = True
-        
-        container = self.query_one("#live-content", Vertical)
-        container.remove_children()
-        
-        parts = re.split(r"(```(?:\w+)?\n.*?\n```)", content, flags=re.DOTALL)
-        for part in parts:
-            if part.startswith("```"):
-                match = re.match(r"```(?:\w+)?\n(.*?)\n```", part, re.DOTALL)
-                code = match.group(1) if match else part
-                container.mount(CodeBlock(code, original_md=part))
-            elif part.strip():
-                container.mount(Markdown(part))
+        try:
+            self.query_one("#live-copy-full-btn").display = True
+            self.query_one("#live-download-pdf-btn").display = True
+            
+            container = self.query_one("#live-content", Vertical)
+            container.remove_children()
+            
+            parts = re.split(r"(```(?:\w+)?\n.*?\n```)", content, flags=re.DOTALL)
+            for part in parts:
+                if part.startswith("```"):
+                    match = re.match(r"```(?:\w+)?\n(.*?)\n```", part, re.DOTALL)
+                    code = match.group(1) if match else part
+                    container.mount(CodeBlock(code, original_md=part))
+                elif part.strip():
+                    container.mount(Markdown(part))
+        except Exception:
+            pass
 
     @on(Button.Pressed, "#live-download-pdf-btn")
     def action_download_pdf(self) -> None:

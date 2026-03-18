@@ -7,14 +7,14 @@
 
 **trawl** is a high-performance, On-Premise AI Powered Research Assistant with terminal interface. Inspired by modern search assistants like Perplexity, it brings deep-dive research capabilities directly to your command line.
 
-![trawl Demo Mockup](./demo.svg)
-![trawl cli demo](./cli.png)
+![Demo](demo.gif)
 
 ---
 
 ## Features
 
-- **Animated Streaming Responses**: Real-time markdown streaming with live spinners and status updates in the terminal.
+- **Streaming Responses**: Real-time markdown streaming with live spinners and status updates in the terminal.
+- **DeepSearch Mode**: Analyze complex queries by automatically splitting them into 3 verticals, researching 45+ sources simultaneously, and synthesizing them into a comprehensive long-form response.
 - **Stable Research UI**: A structured terminal layout using `Rich` to show research progress, sources, and media links without flickering.
 - **Visual Research Insights**: Automatic detection and display of relevant images and videos discovered during research.
 - **Integrated Configuration**: Manage your provider (Gemini/Ollama), API keys, and models directly from the CLI.
@@ -30,12 +30,13 @@
 
 Here's what's coming next to make trawl even more powerful. Contributions towards any of these are especially welcome!
 
-| Status | Feature                            | Description                                                                                                                          |
-| :----- | :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
-| [ ]    | **More LLM Providers**             | Support for Anthropic, OpenAI, Mistral, and other popular providers beyond.                                                          |
-| [ ]    | **Research Modes**                 | Choose your depth — Quick (fast, 1–2 sources), Deep Research (thorough, 10+ sources), and Academic (prefers arXiv, PubMed, Scholar). |
-| [ ]    | **Follow-up Question Suggestions** | After each answer, trawl will surface related questions you can instantly continue the thread with.                                  |
-| [ ]    | **File Upload & Analysis**         | Drop in a PDF, DOCX, or folder and ask questions against your local files — combined with live web search.                           |
+| Status | Feature                            | Description                                                                                                |
+| :----- | :--------------------------------- | :--------------------------------------------------------------------------------------------------------- |
+| [ ]    | **More LLM Providers**             | Support for Anthropic, OpenAI, Mistral, and other popular providers beyond.                                |
+| [x]    | **Research Modes**                 | Multiple depth levels (General search and DeepSearch) for comprehensive research.                          |
+| [ ]    | **Academic Search**                | Specialized research mode preferring academic sources like arXiv, PubMed, and Scholar.                     |
+| [ ]    | **Follow-up Question Suggestions** | After each answer, trawl will surface related questions you can instantly continue the thread with.        |
+| [ ]    | **File Upload & Analysis**         | Drop in a PDF, DOCX, or folder and ask questions against your local files — combined with live web search. |
 
 ---
 
@@ -116,6 +117,9 @@ trawl research "Your query here"
 
 # Short flag
 trawl research --q "Your query here"
+
+# DeepSearch mode (More sources, 3 vertical analysis, comprehensive answer)
+trawl research "Your query here" --deep
 ```
 
 ### Configuration Management

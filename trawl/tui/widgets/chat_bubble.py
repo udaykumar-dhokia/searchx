@@ -87,7 +87,7 @@ class ChatBubble(Static):
                 yield Markdown(part)
         
         with Horizontal(id="bubble-actions"):
-            yield Button("📋 Copy Full Response", id="copy-full-btn")
+            yield Button("📋 Copy Response", id="copy-full-btn")
             yield Button("📄 Download PDF", id="download-pdf-btn")
 
     @on(Button.Pressed, "#download-pdf-btn")

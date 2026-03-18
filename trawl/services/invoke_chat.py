@@ -1,11 +1,11 @@
 from .chat import chat
+from .deepsearch import deepsearch_chat
 from sqlalchemy import UUID
 from dataclasses import dataclass
 from ..utils.spawn_agent import spawn_agent
 from typing import AsyncGenerator
 from ..utils.event import event
 from ..prompts.general import GENERAL_SEARCH_PROMPT
-from ..prompts.social import SOCIAL_SEARCH_PROMPT
 
 @dataclass
 class AIResponse:
@@ -17,7 +17,7 @@ class AIResponse:
 async def invoke_chat(query: str, chat_id: UUID = None, response_id: UUID = None, type: str = "general") -> AsyncGenerator[str, None]:
 
     yield event("status", message="Enhancing your query...")
-    agent = spawn_agent(GENERAL_SEARCH_PROMPT if type == "general" else SOCIAL_SEARCH_PROMPT, AIResponse)
+    agent = spawn_agent(GENERAL_SEARCH_PROMPT, AIResponse)
 
     try:
         response = await agent.ainvoke(
@@ -35,6 +35,11 @@ async def invoke_chat(query: str, chat_id: UUID = None, response_id: UUID = None
     video_query = response["structured_response"].video_query
 
     print(enhanced_query)
+
+    if type == "deepsearch":
+        async for chunk in deepsearch_chat(query=enhanced_query, image_query=image_query, video_query=video_query, chat_id=chat_id, response_id=response_id):
+            yield chunk
+        return
 
     async for chunk in chat(enhanced_query, image_query, video_query, chat_id, response_id):
         yield chunk

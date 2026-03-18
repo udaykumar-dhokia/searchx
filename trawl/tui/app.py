@@ -46,7 +46,7 @@ class TrawlApp(App):
     """Trawl TUI."""
 
     TITLE = "trawl"
-    SUB_TITLE = "AI Powered Knowledge Assistant"
+    SUB_TITLE = "AI Powered Research Assistant"
 
     CSS = """
     /* ── Layout ── */
@@ -133,7 +133,7 @@ class TrawlApp(App):
         margin-right: 1;
     }
     #search-type-switcher {
-        width: 15;
+        width: 18;
         margin-right: 1;
     }
     #query-input {
@@ -255,7 +255,7 @@ class TrawlApp(App):
                     )
                 with Horizontal(id="input-row"):
                     yield Select([], id="llm-switcher", prompt="Select LLM")
-                    yield Select([("General", "general"), ("Social", "social")], value="general", id="search-type-switcher")
+                    yield Select([("General", "general"), ("DeepSearch", "deepsearch")], value="general", id="search-type-switcher")
                     yield Input(placeholder="Ask anything…", id="query-input")
                     yield Button("Send ↵", id="send-btn", variant="primary")
 
@@ -428,6 +428,19 @@ class TrawlApp(App):
         for i, url in enumerate(urls, 1):
             scroll.mount(SourceItem(i, url))
 
+    def _update_deepsearch_sources(self, all_urls: list[str], vertical_urls: dict, total: int) -> None:
+        """Update sources sidebar with DeepSearch vertical grouping."""
+        scroll = self.query_one("#sources-scroll", ScrollableContainer)
+        scroll.remove_children()
+        self.query_one("#sidebar-right-title", Label).update(f"  Sources ({total})")
+
+        idx = 1
+        for vertical_name, urls in vertical_urls.items():
+            scroll.mount(Static(f"[bold cyan]─── {vertical_name[:25]} ({len(urls)}) ───[/]"))
+            for url in urls:
+                scroll.mount(SourceItem(idx, url))
+                idx += 1
+
     @on(Input.Submitted, "#query-input")
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self._send_query(event.value)
@@ -469,7 +482,7 @@ class TrawlApp(App):
             payload["chat_id"] = self.current_chat_id
 
         try:
-            async with httpx.AsyncClient(timeout=120) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=30, read=None, write=30, pool=30)) as client:
                 async with client.stream(
                     "POST",
                     STREAM_ENDPOINT,
@@ -497,9 +510,27 @@ class TrawlApp(App):
                         elif event_type == "enhanced_query":
                             live.set_status(f"Searching: {data.get('text', '')}")
 
+                        elif event_type == "deepsearch_verticals":
+                            verticals = data.get("verticals", [])
+                            live.set_verticals(verticals)
+
+                        elif event_type == "vertical_progress":
+                            v_idx = data.get("vertical_index", 0)
+                            v_query = data.get("vertical_query", "")
+                            v_status = data.get("status", "")
+                            v_count = data.get("url_count", 0)
+                            live.update_vertical_progress(v_idx, v_query, v_status, v_count)
+
+                        elif event_type == "deepsearch_urls":
+                            ds_urls = data.get("urls", [])
+                            vertical_urls = data.get("vertical_urls", {})
+                            total = data.get("total", 0)
+                            self._update_deepsearch_sources(ds_urls, vertical_urls, total)
+
                         elif event_type == "urls":
                             current_sources = data.get("urls", [])
-                            self._update_sources(current_sources)
+                            if search_type != "deepsearch":
+                                self._update_sources(current_sources)
 
                         elif event_type == "content":
                             live.clear_status()
@@ -523,6 +554,7 @@ class TrawlApp(App):
                             if chat_id:
                                 self.current_chat_id = chat_id
                             live.clear_status()
+                            live.flush_content()
                             live.show_copy_buttons()
                             self.load_chats()
 

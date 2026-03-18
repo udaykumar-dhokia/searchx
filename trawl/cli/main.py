@@ -37,28 +37,42 @@ from ..utils.config_manager import ConfigManager
 
 console = Console()
 
-async def stream_research(query: str) -> None:
+async def stream_research(query: str, search_type: str = "general") -> None:
     """Stream research results to the terminal with animations and stable layout."""
     status_message = "Initializing..."
     full_content = ""
     sources = []
     images = []
     videos = []
+    verticals = []
+    is_deepsearch = search_type == "deepsearch"
     
     def make_layout():
         parts = []
+        mode_label = "[bold magenta] DeepSearch[/]" if is_deepsearch else "[bold blue]Research[/]"
         parts.append(Panel(
             Spinner("dots", text=status_message, style="cyan"),
-            title=f"[bold blue]Researching: {query}[/]",
-            border_style="blue",
+            title=f"{mode_label}: {query}",
+            border_style="magenta" if is_deepsearch else "blue",
             padding=(0, 1)
         ))
+
+        if verticals and is_deepsearch:
+            vert_table = Table(show_header=False, box=None, padding=(0, 1))
+            for i, v in enumerate(verticals):
+                status_icon = v.get("icon", "⏳")
+                vert_table.add_row(f"{status_icon} V{i+1}: {v['query']}", f"[dim]{v.get('count', '')}[/]")
+            parts.append(Panel(vert_table, title="[bold]Research Verticals[/]", border_style="magenta"))
         
         if sources:
             source_table = Table(show_header=False, box=None, padding=(0, 1))
-            for i, url in enumerate(sources[:5]):
+            display_count = min(len(sources), 10 if is_deepsearch else 5)
+            for i, url in enumerate(sources[:display_count]):
                 source_table.add_row(f"[dim]{i+1}.[/] [link={url}]{url}[/link]")
-            parts.append(Panel(source_table, title="[bold]Sources[/]", border_style="dim"))
+            if len(sources) > display_count:
+                source_table.add_row(f"[dim]... and {len(sources) - display_count} more sources[/]")
+            src_title = f"[bold]Sources ({len(sources)})[/]" if is_deepsearch else "[bold]Sources[/]"
+            parts.append(Panel(source_table, title=src_title, border_style="dim"))
 
         if full_content:
             parts.append(Panel(
@@ -80,7 +94,7 @@ async def stream_research(query: str) -> None:
 
     with Live(make_layout(), refresh_per_second=10) as live:
         try:
-            async for chunk in invoke_chat(query=query, type="general"):
+            async for chunk in invoke_chat(query=query, type=search_type):
                 if chunk.startswith("data: "):
                     try:
                         data = json.loads(chunk[6:])
@@ -96,6 +110,20 @@ async def stream_research(query: str) -> None:
                             images = data.get("image_urls", [])
                         elif event_type == "video_urls":
                             videos = data.get("video_urls", [])
+                        elif event_type == "deepsearch_verticals":
+                            verticals = [{"query": v, "icon": "⏳", "count": ""} for v in data.get("verticals", [])]
+                        elif event_type == "vertical_progress":
+                            idx = data.get("vertical_index", 0)
+                            if idx < len(verticals):
+                                v_status = data.get("status", "")
+                                verticals[idx]["query"] = data.get("vertical_query", verticals[idx]["query"])
+                                if v_status == "searching":
+                                    verticals[idx]["icon"] = "🔍"
+                                elif v_status == "done":
+                                    verticals[idx]["icon"] = "✅"
+                                    verticals[idx]["count"] = f"{data.get('url_count', 0)} sources"
+                        elif event_type == "deepsearch_urls":
+                            sources = data.get("urls", [])
                             
                         live.update(make_layout())
                     except json.JSONDecodeError:
@@ -104,7 +132,10 @@ async def stream_research(query: str) -> None:
             live.update(Panel(f"[bold red]Error:[/] {e}", title="[bold red]Error[/]", border_style="red"))
             return
 
-    console.print(f"\n[bold green]✓ Research complete for:[/] {query}")
+    if is_deepsearch:
+        console.print(f"\n[bold magenta]✓ DeepSearch complete for:[/] {query} [dim]({len(sources)} sources analyzed)[/]")
+    else:
+        console.print(f"\n[bold green]✓ Research complete for:[/] {query}")
 
 def handle_config(args: argparse.Namespace) -> None:
     """Handle config view and edit."""
@@ -144,6 +175,7 @@ def main() -> None:
     research_parser = subparsers.add_parser("research", help="Search and research a query")
     research_parser.add_argument("query", nargs="?", help="Your research query")
     research_parser.add_argument("--q", "--query", dest="query_alt", help="Your research query (alternative)")
+    research_parser.add_argument("--deep", action="store_true", help="Use DeepSearch mode (3 verticals, 45 sources)")
     
     subparsers.add_parser("tui", help="Run Textual TUI interface")
     
@@ -180,8 +212,9 @@ def main() -> None:
         if not query: query = args.legacy_query
         
         if query:
+            search_type = "deepsearch" if hasattr(args, 'deep') and args.deep else "general"
             try:
-                asyncio.run(stream_research(query))
+                asyncio.run(stream_research(query, search_type))
             except KeyboardInterrupt:
                 console.print("\n[yellow]Query interrupted by user.[/]")
                 sys.exit(1)
